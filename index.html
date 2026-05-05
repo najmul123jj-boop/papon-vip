@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>QUANTUM V9.8 • PRO</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;900&family=Rajdhani:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;user-select:none;-webkit-tap-highlight-color:transparent}
+        body{background:#000;overflow:hidden;font-family:'Rajdhani',sans-serif;height:100vh;width:100vw}
+        iframe{width:100vw;height:100vh;border:none;position:absolute;top:0;left:0;z-index:1}
+
+        #draggablePanel{position:fixed;z-index:100000;cursor:grab;touch-action:none;top:8%;left:8px}
+
+        .quantum-card{
+            width:220px;min-height:72px;padding:1.5px;border-radius:18px;
+            background:linear-gradient(var(--border-angle,0deg),#ff003c,#ff6a00,#ffd000,#00ff88,#00c8ff,#7c3aed,#ff0080,#ff003c);
+            --border-angle:0deg;animation:spinBorder 3s linear infinite;
+            box-shadow:0 0 30px rgba(0,255,136,0.15),0 0 60px rgba(0,255,136,0.05);
+            position:relative;transition:min-height 0.3s cubic-bezier(.4,0,.2,1);
+        }
+        @property --border-angle{syntax:'<angle>';initial-value:0deg;inherits:false}
+        @keyframes spinBorder{to{--border-angle:360deg}}
+
+        .inner-panel{
+            background:rgba(4,4,10,0.98);border-radius:16px;padding:10px 12px;
+            text-align:center;backdrop-filter:blur(40px);
+            border:1px solid rgba(255,255,255,0.03);position:relative;overflow:hidden;
+            display:flex;flex-direction:column;height:100%;
+        }
+        .inner-panel::before{
+            content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;
+            background:radial-gradient(circle at 30% 20%,rgba(0,255,136,0.03) 0%,transparent 50%),
+                        radial-gradient(circle at 70% 80%,rgba(255,0,60,0.02) 0%,transparent 50%);
+            pointer-events:none;
+        }
+
+        /* === AUTH PANEL (unchanged) === */
+        #authView{display:flex;flex-direction:column;justify-content:center;height:100%;padding:2px 0}
+        #authView h2{color:#00ff88;font-family:'Orbitron';font-size:10px;margin-bottom:8px;letter-spacing:1.5px;text-shadow:0 0 10px rgba(0,255,136,0.5)}
+        #passInput{width:100%;padding:8px;background:rgba(255,255,255,0.05);border:1px solid #333;color:#fff;border-radius:8px;text-align:center;margin-bottom:8px;font-family:'Orbitron';font-size:11px;outline:none}
+        .unlock-btn{width:100%;padding:8px;background:linear-gradient(90deg,#00ff88,#00ccff);border:none;border-radius:8px;font-weight:bold;font-size:9px;font-family:'Orbitron';cursor:pointer;color:#000}
+
+        /* === DASHBOARD === */
+        #dashboard{display:none;flex-direction:column;gap:0}
+
+        .top-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+        .live-badge{display:flex;align-items:center;gap:4px}
+        .live-dot{width:5px;height:5px;background:#ff003c;border-radius:50%;box-shadow:0 0 8px #ff003c;animation:livePulse 1.5s ease-in-out infinite}
+        @keyframes livePulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.4;transform:scale(0.8)}}
+        .live-text{color:#ff003c;font-size:8px;font-weight:700;letter-spacing:1.5px;font-family:'Orbitron'}
+
+        .period-tag{
+            font-size:7px;color:#ffd000;font-family:'Share Tech Mono',monospace;letter-spacing:0.5px;
+            background:rgba(255,208,0,0.08);padding:3px 8px;border-radius:6px;
+            border:1px solid rgba(255,208,0,0.15);
+        }
+
+        .timer-block{position:relative;margin:4px 0 2px}
+        #timer{
+            font-family:'Orbitron',monospace;color:#fff;font-size:36px;font-weight:900;
+            line-height:1;letter-spacing:2px;
+            text-shadow:0 0 20px rgba(255,255,255,0.1);
+        }
+        #timer.warning{color:#ff003c;text-shadow:0 0 25px rgba(255,0,60,0.4);animation:timerPulse 0.5s ease-in-out infinite}
+        @keyframes timerPulse{0%,100%{opacity:1}50%{opacity:0.6}}
+
+        .progress-track{width:100%;height:3px;background:rgba(255,255,255,0.04);border-radius:10px;overflow:hidden;margin:6px 0 8px}
+        .progress-fill{height:100%;border-radius:10px;transition:width 0.15s linear;background:linear-gradient(90deg,#00ff88,#00c8ff)}
+        .progress-fill.warning{background:linear-gradient(90deg,#ff003c,#ff6a00)}
+
+        /* Signal Result */
+        .signal-result{
+            background:rgba(255,255,255,0.02);border-radius:14px;padding:10px 8px;
+            border:1px solid rgba(255,255,255,0.04);position:relative;overflow:hidden;
+        }
+        .signal-result::before{
+            content:'';position:absolute;top:0;left:0;right:0;height:1px;
+            background:linear-gradient(90deg,transparent,rgba(0,255,136,0.3),transparent);
+        }
+
+        .scanner-overlay{
+            position:absolute;inset:0;background:rgba(4,4,10,0.96);
+            display:none;flex-direction:column;align-items:center;justify-content:center;
+            z-index:50;border-radius:13px;gap:6px;
+        }
+        .scanner-overlay.show{display:flex}
+        .scan-ring{
+            width:32px;height:32px;border:2px solid transparent;border-top:2px solid #00ff88;
+            border-radius:50%;animation:scanSpin 0.8s linear infinite;position:relative;
+        }
+        .scan-ring::after{
+            content:'';position:absolute;inset:3px;border:1px solid transparent;
+            border-bottom:1px solid #00c8ff;border-radius:50%;animation:scanSpin 1.2s linear infinite reverse;
+        }
+        @keyframes scanSpin{to{transform:rotate(360deg)}}
+        .scan-text{color:#00ff88;font-size:7px;font-family:'Orbitron';letter-spacing:2px;animation:scanBlink 0.8s ease-in-out infinite}
+        @keyframes scanBlink{0%,100%{opacity:1}50%{opacity:0.3}}
+
+        .signal-label{font-size:7px;color:rgba(255,255,255,0.25);letter-spacing:2px;font-family:'Orbitron';margin-bottom:6px}
+
+        .main-signal-row{display:flex;gap:6px;justify-content:center;margin-bottom:8px}
+        .sig-chip{
+            padding:7px 14px;border-radius:10px;font-family:'Orbitron',sans-serif;
+            font-size:9px;font-weight:700;letter-spacing:1px;
+            opacity:0.12;transition:all 0.4s cubic-bezier(.4,0,.2,1);
+            border:1px solid transparent;position:relative;overflow:hidden;
+        }
+        .sig-chip.active{opacity:1;transform:scale(1.08)}
+        .sig-chip.active::after{
+            content:'';position:absolute;inset:0;
+            background:linear-gradient(180deg,rgba(255,255,255,0.1) 0%,transparent 60%);
+            pointer-events:none;
+        }
+        .chip-red{color:#ff003c;background:rgba(255,0,60,0.08)}
+        .chip-red.active{border-color:rgba(255,0,60,0.4);box-shadow:0 0 20px rgba(255,0,60,0.25),inset 0 0 15px rgba(255,0,60,0.1)}
+        .chip-green{color:#00ff88;background:rgba(0,255,136,0.08)}
+        .chip-green.active{border-color:rgba(0,255,136,0.4);box-shadow:0 0 20px rgba(0,255,136,0.25),inset 0 0 15px rgba(0,255,136,0.1)}
+
+        .size-row{display:flex;gap:6px;justify-content:center;margin-bottom:10px}
+        .chip-big{color:#ffd000;background:rgba(255,208,0,0.08)}
+        .chip-big.active{border-color:rgba(255,208,0,0.4);box-shadow:0 0 15px rgba(255,208,0,0.2)}
+        .chip-small{color:#00c8ff;background:rgba(0,200,255,0.08)}
+        .chip-small.active{border-color:rgba(0,200,255,0.4);box-shadow:0 0 15px rgba(0,200,255,0.2)}
+
+        .number-label{font-size:6px;color:rgba(255,255,255,0.2);letter-spacing:2px;font-family:'Orbitron';margin-bottom:5px}
+        .number-prediction{display:flex;gap:4px;justify-content:center;flex-wrap:wrap}
+        .num-circle{
+            width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+            font-family:'Orbitron',sans-serif;font-size:10px;font-weight:600;
+            opacity:0.08;transition:all 0.35s cubic-bezier(.4,0,.2,1);
+            border:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.02);
+        }
+        .num-circle.active{opacity:1;transform:scale(1.15);border-color:currentColor}
+        .num-circle.active.red-num{color:#ff003c;background:rgba(255,0,60,0.1);box-shadow:0 0 12px rgba(255,0,60,0.3)}
+        .num-circle.active.green-num{color:#00ff88;background:rgba(0,255,136,0.1);box-shadow:0 0 12px rgba(0,255,136,0.3)}
+
+        /* Confidence Bar */
+        .confidence-row{display:flex;align-items:center;justify-content:space-between;margin-top:8px;padding:0 2px}
+        .conf-label{font-size:6px;color:rgba(255,255,255,0.2);letter-spacing:1.5px;font-family:'Orbitron'}
+        .conf-value{font-size:10px;font-family:'Orbitron';font-weight:700}
+        .conf-track{width:100%;height:2px;background:rgba(255,255,255,0.04);border-radius:10px;margin-top:4px;overflow:hidden}
+        .conf-fill{height:100%;border-radius:10px;transition:width 0.6s ease,background 0.6s ease}
+
+        /* History */
+        .history-section{margin-top:8px;border-top:1px solid rgba(255,255,255,0.03);padding-top:6px}
+        .history-label{font-size:6px;color:rgba(255,255,255,0.15);letter-spacing:2px;font-family:'Orbitron';margin-bottom:5px}
+        .history-dots{display:flex;gap:3px;justify-content:center;flex-wrap:wrap}
+        .h-dot{
+            width:14px;height:14px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+            font-size:5px;font-family:'Orbitron';font-weight:700;
+            transition:all 0.3s;
+        }
+        .h-dot.red{background:rgba(255,0,60,0.15);color:#ff003c;border:1px solid rgba(255,0,60,0.2)}
+        .h-dot.green{background:rgba(0,255,136,0.15);color:#00ff88;border:1px solid rgba(0,255,136,0.2)}
+        .h-dot.win{box-shadow:0 0 6px currentColor}
+        .h-dot.loss{opacity:0.4}
+
+        /* Win Rate */
+        .winrate-bar{
+            display:flex;align-items:center;gap:6px;margin-top:6px;
+            background:rgba(255,255,255,0.02);border-radius:8px;padding:5px 8px;
+        }
+        .wr-label{font-size:6px;color:rgba(255,255,255,0.2);font-family:'Orbitron';letter-spacing:1px;white-space:nowrap}
+        .wr-track{flex:1;height:3px;background:rgba(255,255,255,0.04);border-radius:10px;overflow:hidden}
+        .wr-fill{height:100%;border-radius:10px;background:linear-gradient(90deg,#ff003c,#ffd000,#00ff88);transition:width 0.5s ease}
+        .wr-value{font-size:9px;font-family:'Orbitron';font-weight:700;color:#00ff88;white-space:nowrap}
+
+        /* Resize Handle */
+        .resize-handle{
+            position:absolute;bottom:0;left:0;width:100%;height:18px;
+            cursor:ns-resize;touch-action:none;
+            display:flex;align-items:center;justify-content:center;z-index:10;
+        }
+        .resize-bar{width:28px;height:2.5px;background:rgba(0,255,136,0.15);border-radius:10px;transition:background 0.2s}
+        .resize-handle:hover .resize-bar{background:rgba(0,255,136,0.4)}
+
+        /* Data Code Bar */
+        .data-code{
+            margin-top:6px;padding:4px 8px;border-radius:6px;
+            background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.03);
+            font-family:'Share Tech Mono',monospace;font-size:7px;color:rgba(255,255,255,0.2);
+            letter-spacing:0.5px;overflow:hidden;white-space:nowrap;
+        }
+        .data-code span{color:rgba(0,255,136,0.5)}
+    </style>
+</head>
+<body>
+
+<iframe src="https://dkwin9.com/#/register?invitationCode=75518598003"></iframe>
+
+<div id="draggablePanel">
+    <div class="quantum-card" id="quantumCard">
+        <div class="inner-panel" id="innerPanel">
+
+            <div id="authView">
+                <h2>QUANTUM V9.8</h2>
+                <input type="password" id="passInput" placeholder="PASSCODE">
+                <button class="unlock-btn" onclick="handleLogin()">ACCESS AI</button>
+            </div>
+
+            <div id="dashboard">
+                <div class="top-bar">
+                    <div class="live-badge">
+                        <div class="live-dot"></div>
+                        <span class="live-text">LIVE</span>
+                    </div>
+                    <div class="period-tag" id="periodDisplay">LOADING...</div>
+                </div>
+
+                <div class="timer-block">
+                    <div id="timer">00:30</div>
+                </div>
+                <div class="progress-track"><div class="progress-fill" id="progressBar"></div></div>
+
+                <div class="signal-result">
+                    <div class="scanner-overlay" id="scannerOverlay">
+                        <div class="scan-ring"></div>
+                        <div class="scan-text">ANALYZING</div>
+                    </div>
+
+                    <div class="signal-label">SIGNAL PREDICTION</div>
+
+                    <div class="main-signal-row">
+                        <div class="sig-chip chip-red" id="chipRed">RED</div>
+                        <div class="sig-chip chip-green" id="chipGreen">GREEN</div>
+                    </div>
+
+                    <div class="size-row">
+                        <div class="sig-chip chip-big" id="chipBig">BIG</div>
+                        <div class="sig-chip chip-small" id="chipSmall">SMALL</div>
+                    </div>
+
+                    <div class="number-label">PREDICTED NUMBERS</div>
+                    <div class="number-prediction" id="numberGrid"></div>
+
+                    <div class="confidence-row">
+                        <span class="conf-label">CONFIDENCE</span>
+                        <span class="conf-value" id="confValue" style="color:#00ff88">87%</span>
+                    </div>
+                    <div class="conf-track"><div class="conf-fill" id="confFill" style="width:87%;background:linear-gradient(90deg,#00ff88,#00c8ff)"></div></div>
+
+                    <div class="data-code" id="dataCode">
+                        <span>QV9</span> :: 30S :: <span>CLR</span> :: <span id="dcColor">---</span> :: SZ::<span id="dcSize">--</span> :: NM::<span id="dcNums">---</span>
+                    </div>
+
+                    <div class="history-section">
+                        <div class="history-label">LAST 10 RESULTS</div>
+                        <div class="history-dots" id="historyDots"></div>
+                        <div class="winrate-bar">
+                            <span class="wr-label">WIN RATE</span>
+                            <div class="wr-track"><div class="wr-fill" id="wrFill" style="width:0%"></div></div>
+                            <span class="wr-value" id="wrValue">0%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="resize-handle" id="resizeHandle"><div class="resize-bar"></div></div>
+    </div>
+</div>
+
+<script>
+    const card = document.getElementById('quantumCard');
+    const authView = document.getElementById('authView');
+    const dashboard = document.getElementById('dashboard');
+
+    /* ===== AUTH ===== */
+    function handleLogin() {
+        if (document.getElementById('passInput').value === "VIP1009") {
+            authView.style.display = "none";
+            dashboard.style.display = "flex";
+            card.style.minHeight = "360px";
+            initSignalEngine();
+        }
+    }
+    document.getElementById('passInput').addEventListener('keydown', e => { if (e.key === 'Enter') handleLogin(); });
+
+    /* ===== DRAG ===== */
+    let isDragging = false, startX, startY, initialX, initialY;
+    const dragPanel = document.getElementById('draggablePanel');
+    dragPanel.addEventListener('pointerdown', e => {
+        if (isResizing) return;
+        if (e.target.closest('#passInput') || e.target.closest('.unlock-btn')) return;
+        isDragging = true;
+        startX = e.clientX; startY = e.clientY;
+        initialX = dragPanel.offsetLeft; initialY = dragPanel.offsetTop;
+        dragPanel.setPointerCapture(e.pointerId);
+    });
+    document.addEventListener('pointermove', e => {
+        if (!isDragging) return;
+        dragPanel.style.left = (initialX + e.clientX - startX) + 'px';
+        dragPanel.style.top = (initialY + e.clientY - startY) + 'px';
+    });
+    document.addEventListener('pointerup', () => isDragging = false);
+
+    /* ===== RESIZE ===== */
+    let isResizing = false;
+    document.getElementById('resizeHandle').addEventListener('pointerdown', e => {
+        isResizing = true;
+        e.target.setPointerCapture(e.pointerId);
+        e.stopPropagation();
+    });
+    document.addEventListener('pointermove', e => {
+        if (!isResizing) return;
+        let newH = e.clientY - card.getBoundingClientRect().top;
+        card.style.minHeight = Math.max(72, Math.min(700, newH)) + 'px';
+    });
+    document.addEventListener('pointerup', () => isResizing = false);
+
+    /* ===== SIGNAL ENGINE ===== */
+    let currentSignal = { color: 'red', size: 'big', numbers: [], confidence: 0 };
+    let history = [];
+    let lastPeriod = -1;
+
+    function initSignalEngine() {
+        updateTimer();
+        setInterval(updateTimer, 200);
+        // Seed some fake history
+        const fakeColors = ['red','green','green','red','green','red','red','green','red','green'];
+        const fakeSizes = ['big','small','big','small','big','big','small','small','big','small'];
+        fakeColors.forEach((c, i) => {
+            history.push({
+                color: c,
+                size: fakeSizes[i],
+                win: Math.random() > 0.3
+            });
+        });
+        renderHistory();
+    }
+
+    function generateSignal() {
+        // Smart-ish signal generation with weighted patterns
+        const rand = Math.random();
+        let color, size, numbers, confidence;
+
+        // Color determination with slight pattern bias
+        if (history.length >= 3) {
+            const last3 = history.slice(-3).map(h => h.color);
+            const redCount = last3.filter(c => c === 'red').length;
+            // Counter-trend bias
+            if (redCount >= 3) color = 'green';
+            else if (redCount === 0) color = 'red';
+            else color = rand > 0.5 ? 'red' : 'green';
+        } else {
+            color = rand > 0.5 ? 'red' : 'green';
+        }
+
+        // Size
+        size = Math.random() > 0.5 ? 'big' : 'small';
+
+        // Numbers - pick 3-5 numbers matching color+size
+        const pool = [];
+        for (let i = 0; i <= 9; i++) {
+            if (size === 'big' && i >= 5) pool.push(i);
+            else if (size === 'small' && i < 5) pool.push(i);
+        }
+        // Shuffle and pick 3-4
+        pool.sort(() => Math.random() - 0.5);
+        const pickCount = 3 + Math.floor(Math.random() * 2);
+        numbers = pool.slice(0, Math.min(pickCount, pool.length));
+
+        // Confidence 72-96%
+        confidence = 72 + Math.floor(Math.random() * 25);
+
+        currentSignal = { color, size, numbers, confidence };
+        applySignalToUI();
+    }
+
+    function applySignalToUI() {
+        const { color, size, numbers, confidence } = currentSignal;
+
+        // Color chips
+        document.getElementById('chipRed').classList.toggle('active', color === 'red');
+        document.getElementById('chipGreen').classList.toggle('active', color === 'green');
+
+        // Size chips
+        document.getElementById('chipBig').classList.toggle('active', size === 'big');
+        document.getElementById('chipSmall').classList.toggle('active', size === 'small');
+
+        // Number grid
+        const grid = document.getElementById('numberGrid');
+        grid.innerHTML = '';
+        for (let i = 0; i <= 9; i++) {
+            const num = document.createElement('div');
+            num.className = 'num-circle';
+            num.textContent = i;
+            if (numbers.includes(i)) {
+                num.classList.add('active', color === 'red' ? 'red-num' : 'green-num');
+            }
+            grid.appendChild(num);
+        }
+
+        // Confidence
+        const confEl = document.getElementById('confValue');
+        confEl.textContent = confidence + '%';
+        if (confidence >= 85) {
+            confEl.style.color = '#00ff88';
+            document.getElementById('confFill').style.background = 'linear-gradient(90deg,#00ff88,#00c8ff)';
+        } else if (confidence >= 75) {
+            confEl.style.color = '#ffd000';
+            document.getElementById('confFill').style.background = 'linear-gradient(90deg,#ffd000,#ff6a00)';
+        } else {
+            confEl.style.color = '#ff003c';
+            document.getElementById('confFill').style.background = 'linear-gradient(90deg,#ff003c,#ff6a00)';
+        }
+        document.getElementById('confFill').style.width = confidence + '%';
+
+        // Data Code
+        document.getElementById('dcColor').textContent = color.toUpperCase();
+        document.getElementById('dcSize').textContent = size === 'big' ? 'B' : 'S';
+        document.getElementById('dcNums').textContent = numbers.join(',');
+    }
+
+    function renderHistory() {
+        const container = document.getElementById('historyDots');
+        container.innerHTML = '';
+        const last10 = history.slice(-10);
+        last10.forEach(h => {
+            const dot = document.createElement('div');
+            dot.className = 'h-dot ' + h.color + (h.win ? ' win' : ' loss');
+            dot.textContent = h.win ? 'W' : 'L';
+            container.appendChild(dot);
+        });
+        // Win rate
+        const wins = last10.filter(h => h.win).length;
+        const rate = Math.round((wins / last10.length) * 100);
+        document.getElementById('wrFill').style.width = rate + '%';
+        document.getElementById('wrValue').textContent = rate + '%';
+    }
+
+    function simulateResult() {
+        // Simulate whether signal was correct (70% win for realism)
+        const won = Math.random() < 0.72;
+        history.push({
+            color: currentSignal.color,
+            size: currentSignal.size,
+            win: won
+        });
+        if (history.length > 30) history.shift();
+        renderHistory();
+    }
+
+    function updateTimer() {
+        const now = new Date();
+        const totalSec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+        const periodIndex = Math.floor(totalSec / 30);
+        const secInPeriod = totalSec % 30;
+        const remain = 30 - secInPeriod;
+
+        // New period? Generate signal + simulate last result
+        if (periodIndex !== lastPeriod) {
+            if (lastPeriod !== -1) simulateResult();
+            lastPeriod = periodIndex;
+            generateSignal();
+        }
+
+        // Timer display
+        const timerEl = document.getElementById('timer');
+        timerEl.textContent = "00:" + (remain < 10 ? "0" + remain : remain);
+        const isWarning = remain <= 5;
+        timerEl.classList.toggle('warning', isWarning);
+
+        // Progress
+        const bar = document.getElementById('progressBar');
+        bar.style.width = ((remain / 30) * 100) + "%";
+        bar.classList.toggle('warning', isWarning);
+
+        // Scanner overlay
+        document.getElementById('scannerOverlay').classList.toggle('show', isWarning);
+
+        // Period display
+        const ymd = now.getFullYear().toString()
+            + (now.getMonth() + 1).toString().padStart(2, '0')
+            + now.getDate().toString().padStart(2, '0');
+        document.getElementById('periodDisplay').textContent = ymd + "30" + periodIndex.toString().padStart(4, '0');
+    }
+</script>
+
+</body>
+</html>
